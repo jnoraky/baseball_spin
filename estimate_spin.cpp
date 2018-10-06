@@ -261,6 +261,10 @@ int main(int argc, char **argv) {
       Mat xyz;
       estimate_orientation(edge,xyz,r,cx,cy,xyz_rotated,cost_matrix);
       xyz_vec.push_back(xyz);
+  
+      imshow("img",im_vec[ii]);
+      imshow("edge", edge);
+      waitKey(0);
    }
   
    /*

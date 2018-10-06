@@ -70,7 +70,9 @@ void detect_ball(
       ball_frame = frame2_tmp(Rect(x,y,w,h));
       
       // Get approximate radius and center
-      r = 0.25*(w+h);
+      //int area = sum(ball_frame>0)[0];
+      r = sqrt(second/3.1415926);
+      //cout << r << "\n";
       cent = Point(r,r);
    }
 }
