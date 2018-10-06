@@ -122,12 +122,13 @@ float estimate_rotation(
    const vector<float>& r_vec,
    const vector<Point>& cent_vec,
    int start,
-   const Mat& Rmat2
+   const Mat& Rmat2,
+   int numIter
    ) {
 
    float minCost = 1e50; // Arbitraily large
 
-   int numRot = 1000;
+   int numRot = numIter;//1000;
    int numEdges = edge_vec.size();
  
    // Get a vector of the non-zero x and y coordinates
@@ -303,7 +304,7 @@ int main(int argc, char **argv) {
       Mat R;
       Mat xyz_tmp;
       xyz_vec[start].copyTo(xyz_tmp);
-      float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2);
+      float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]));
       if (minCost < bestErr) {
          bestErr = minCost;
          bestSpin = getSpin(R,120);
