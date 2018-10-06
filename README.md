@@ -18,5 +18,5 @@ Issues
 ======
 * Assets are quite large and slow to load
 * Algorithm can be slow depending on the number of rotations/spins to try 
-
+* Change input directly to video instead of frames
 
