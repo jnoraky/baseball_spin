@@ -72,8 +72,10 @@ void detect_ball(
       // Get approximate radius and center
       //int area = sum(ball_frame>0)[0];
       r = sqrt(second/3.1415926);
-      //cout << r << "\n";
-      cent = Point(r,r);
+      //float cx = 0.25*(h+w);
+      float cx = (float)centroids.at<double>(ii2,0)-x;
+      float cy = (float)centroids.at<double>(ii2,1)-y;
+      cent = Point(cx,cy);
    }
 }
 

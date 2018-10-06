@@ -92,7 +92,7 @@ void estimate_orientation(
    int indx = min_loc.y;
    xyz = xyz_rotated(Rect(0,3*indx,396,3));
   
-   /*
+   /* 
    Mat xyz_curr = xyz; 
    // For debugging purposes
    r = 20;
@@ -205,6 +205,13 @@ float estimate_rotation(
          Mat err = dx2+dy2;
          Mat err2;
          reduce(err,err2,1,CV_REDUCE_MIN);
+        
+         
+         // Get the max value
+         Mat maxMat;
+         reduce(err2,maxMat,0,CV_REDUCE_MAX);
+         if (maxMat.at<float>(0) > 5e2) break;
+         
          Mat sumMat;
          reduce(err2,sumMat,0,CV_REDUCE_SUM);
          tmpCost += (1.0*sumMat.at<float>(0)/numNz);
@@ -257,14 +264,15 @@ int main(int argc, char **argv) {
       Mat edge;
       get_seam_pix(im_vec[ii],r,cx,cy,edge);
       edge_vec.push_back(edge);
-      
+     
+      //imshow("img",im_vec[ii]);
       Mat xyz;
       estimate_orientation(edge,xyz,r,cx,cy,xyz_rotated,cost_matrix);
       xyz_vec.push_back(xyz);
   
-      imshow("img",im_vec[ii]);
+      /*imshow("img",im_vec[ii]);
       imshow("edge", edge);
-      waitKey(0);
+      waitKey(0);*/
    }
   
    /*
@@ -314,6 +322,7 @@ int main(int argc, char **argv) {
          bestSpin = getSpin(R,120);
       }
    }
+   cout << "Best error is: " << bestErr << "\n";
    cout << "Spin is: " << bestSpin << "\n"; 
 }
 
