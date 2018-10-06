@@ -10,8 +10,8 @@ Set-up
 ======
 0. Download the bin files and the frames folder from Dropbox. These files should
    be in the same directory as the source code. 
-1a. Compile the code e.g. g++ -o out.exe -O3 *.cpp `pkg-config --cflags --libs opencv`. (Make sure to add the ticks around the pkg-config command)
-1b. Alternatively, you can compile the code by running make
+1. Compile the code e.g. g++ -o out.exe -O3 *.cpp `pkg-config --cflags --libs
+   opencv`. (Make sure to add the ticks around the pkg-config command). Alternatively, you can compile the code by running make
 2. Run it e.g. ./out.exe 3 1000 (here, 3 refers to the third video, and 1000
    refers to the number of spins to try. Generally, the more spins the better,
    but this slows down the algorithm.)
