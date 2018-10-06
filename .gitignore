@@ -1,4 +1,5 @@
 .DS_STORE
+*.o
 *.exe
 *.bin
 frames/
