@@ -160,12 +160,14 @@ float estimate_rotation(
       x_nzCoord.push_back(xx_Mat);
       y_nzCoord.push_back(yy_Mat);
    }
+   //cout << "here\n"; 
    
    //Mat Rmat2;
    //convert_to_mat("rotations2.bin",Rmat2);
    // Get vector of non-zero
    Mat xyz_tmp;
-   for (int jj = 0; jj < numRot; jj++) {
+   
+   for (int jj = 0; jj < numRot; jj += 1) {
       Mat Rtmp = Rmat2(Rect(0,3*jj,3,3));
       xyz.copyTo(xyz_tmp);
       
@@ -181,7 +183,8 @@ float estimate_rotation(
          vector<float> x_data;
          vector<float> y_data;
          int numNz = 0;
-         for (int kk = 0; kk < 396; kk++) {
+         
+         for (int kk = 0; kk < 396; kk += 10) {
             if (xyz_tmp.at<float>(2,kk) > 0) {
                x_data.push_back( rtmp*xyz_tmp.at<float>(0,kk)+cx );
                y_data.push_back( rtmp*xyz_tmp.at<float>(1,kk)+cy );
@@ -210,8 +213,12 @@ float estimate_rotation(
          // Get the max value
          Mat maxMat;
          reduce(err2,maxMat,0,CV_REDUCE_MAX);
-         if (maxMat.at<float>(0) > 5e2) break;
-         
+         if (maxMat.at<float>(0) > 5e2) { 
+            //cout << "here!!!\n";
+            tmpCost = 1e10;
+            break;
+         }
+         //cout << "boom\n";
          Mat sumMat;
          reduce(err2,sumMat,0,CV_REDUCE_SUM);
          tmpCost += (1.0*sumMat.at<float>(0)/numNz);
@@ -225,7 +232,7 @@ float estimate_rotation(
    return minCost;
 }
 
-float getSpin(Mat& R, int fps) {
+float getSpin(const Mat& R, int fps) {
    //float trR = R.at<float>(0,0)+R.at<float>(1,1)+R.at<float>(2,2);
    //cout << R.t()*R << "\n";
    //makeRot(R);
@@ -237,8 +244,27 @@ float getSpin(Mat& R, int fps) {
    return angle/(2*PI)*fps*60;
 }
 
+void getAxis(const Mat& R, vector<float>& axis) {
+   float h = R.at<float>(2,1);
+   float f = R.at<float>(1,2);
+   float c = R.at<float>(0,2);
+   float g = R.at<float>(2,0);
+   float d = R.at<float>(1,0);
+   float b = R.at<float>(0,1);
+   axis[0] = h-f;
+   axis[1] = c-g;
+   axis[2] = d-b;
+}
+
 int main(int argc, char **argv) {
-    
+   
+   Mat Rmat;
+   convert_to_mat("rotations.bin",Rmat);
+
+   Mat xyz;
+   convert_to_mat("seams.bin",xyz);
+   //cout << xyz.size() << "\n";
+
    Mat cost_matrix;
    convert_to_mat("cost_matrix.bin",cost_matrix);
 
@@ -255,6 +281,7 @@ int main(int argc, char **argv) {
    vector<Point> cent_vec;
 
    process_data(stoi(argv[1]),im_vec,r_vec,cent_vec);
+   cout << "Done preprocessing\n";
    for (int ii = 0; ii < im_vec.size(); ii++) {
 
       float r = r_vec[ii];
@@ -274,7 +301,7 @@ int main(int argc, char **argv) {
       imshow("edge", edge);
       waitKey(0);*/
    }
-  
+   cout << "Done estimating orientation\n"; 
    /*
    cout << "Done loading\n";
    float r_arr[10] = {24,24,25,25,25,26,27,27,28,29};
@@ -308,9 +335,10 @@ int main(int argc, char **argv) {
    */
    
 
-   cout << "Done pre-processing\n";
+   //cout << "Done pre-processing\n";
    float bestErr = 1e100;
    float bestSpin = 0;
+   Mat bestR;
    for (int start = 0; start < 5; start++) {
    
       Mat R;
@@ -319,10 +347,16 @@ int main(int argc, char **argv) {
       float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]));
       if (minCost < bestErr) {
          bestErr = minCost;
+         R.copyTo(bestR);
          bestSpin = getSpin(R,120);
       }
    }
+   
+   //void getAxis(const Mat& R, vector<float>& axis) {
+   vector<float> axis(3);
+   getAxis(bestR,axis);
    cout << "Best error is: " << bestErr << "\n";
    cout << "Spin is: " << bestSpin << "\n"; 
+   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n";
 }
 
