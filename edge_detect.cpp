@@ -36,14 +36,14 @@ void get_seam_pix(
 
    // Some useful parameters
    int minSize = 20; // Minimum size for the  seam
-   float fracSize = 0.5; // Size for the second seam
+   float fracSize = 0.4; // Size for the second seam
 
    int h = im.rows;
    int w = im.cols;
    
    // Remove the potential junk around the baseball
    Mat mask = Mat::zeros(Size(w,h),im.type());
-   circle(mask,Point(cx,cy),0.9*r,Scalar(255,255,255),-1,8,0);
+   circle(mask,Point(cx,cy),0.90*r,Scalar(255,255,255),-1,8,0);
 
    Mat im_clean;
    im.copyTo(im_clean,mask);
@@ -108,7 +108,7 @@ void get_seam_pix(
    } else {
       seam_pix = Mat::zeros(Size(w,h),im.type());
    }
-   seam_pix = labels == ii2;
+   //seam_pix = labels == ii2;
 }
 
 

@@ -108,7 +108,7 @@ void process_data(
          cent_vec.push_back(cent);
          i++;
       }
-   } catch (...) {}
+   } catch (...) { cout << "Cannot load frames!!! Check if they exist\n"; }
 }
 
 /*

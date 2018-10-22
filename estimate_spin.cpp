@@ -92,7 +92,7 @@ void estimate_orientation(
    int indx = min_loc.y;
    xyz = xyz_rotated(Rect(0,3*indx,396,3));
   
-   /* 
+   /*
    Mat xyz_curr = xyz; 
    // For debugging purposes
    r = 20;
@@ -100,7 +100,7 @@ void estimate_orientation(
    cy = 24;
    Mat est_edge = Mat::zeros(edge_rescaled.size(),edge_rescaled.type());
    edge_rescaled.copyTo(est_edge);
-   cout << xyz_curr.size() << "\n";
+   //cout << xyz_curr.size() << "\n";
    int numPts = 396;//#xyz_curr.cols;
    for ( int i = 0; i < numPts; i++ ) {
       float z = xyz_curr.at<float>(2,i);
@@ -279,9 +279,13 @@ int main(int argc, char **argv) {
    vector<Mat> xyz_vec;
    vector<float> r_vec;
    vector<Point> cent_vec;
-
+   
+   cout << "Video " << argv[1] << "\n";
    process_data(stoi(argv[1]),im_vec,r_vec,cent_vec);
-   cout << "Done preprocessing\n";
+   reverse(im_vec.begin(),im_vec.end());
+   reverse(r_vec.begin(),r_vec.end());
+   reverse(cent_vec.begin(),cent_vec.end());
+   //cout << "Done preprocessing\n";
    for (int ii = 0; ii < im_vec.size(); ii++) {
 
       float r = r_vec[ii];
@@ -301,7 +305,7 @@ int main(int argc, char **argv) {
       imshow("edge", edge);
       waitKey(0);*/
    }
-   cout << "Done estimating orientation\n"; 
+   //cout << "Done estimating orientation\n"; 
    /*
    cout << "Done loading\n";
    float r_arr[10] = {24,24,25,25,25,26,27,27,28,29};
@@ -339,7 +343,7 @@ int main(int argc, char **argv) {
    float bestErr = 1e100;
    float bestSpin = 0;
    Mat bestR;
-   for (int start = 0; start < 5; start++) {
+   for (int start = 0; start < xyz_vec.size()-3; start++) {
    
       Mat R;
       Mat xyz_tmp;
