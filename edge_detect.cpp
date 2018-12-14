@@ -23,6 +23,84 @@ void edge_detect(
 }
 
 void get_seam_pix(
+   const Mat& im, // cropped image of baseball
+   float r,
+   float cx,
+   float cy,
+   int filter_size, // Size of bilateral and laplacian filter
+   int logo_thresh, // Logos are darker, and 
+   // we only consider pixels brighter than this threshold 
+   int min_size, // Minimum fragment size to be considered "seam"
+   float lap_thresh, // Laplacian threshold to binarize edge
+   Mat& seam_pix             
+   ){
+   
+   int h = im.rows;
+   int w = im.cols;
+   
+   
+   // use to remove the potential junk around the baseball
+   Mat mask = Mat::zeros(Size(w,h),im.type());
+   circle(mask,Point(cx,cy),0.80*r,Scalar(255,255,255),-1,8,0);
+   
+   // Detect the seam and other edges in the image
+   Mat edge;
+   edge_detect(im,filter_size,75,75,edge);
+   // Threshold to get a binary img of the seam
+   Mat edge_tmp = edge > lap_thresh; 
+   Mat edge_nb;
+   edge_tmp.copyTo(edge_nb,mask);
+   
+   // we want to get all the connected components
+   Mat labels;
+   Mat stats;
+   Mat centroids;
+   int numComponents = connectedComponentsWithStats(edge_nb,labels,stats,
+      centroids,4);
+   
+   // Get second and third largest index
+   // Clearly not the most elegant way to do this
+   int first = 0;
+   int second = 0;
+   int third = 0;
+   int ii1,ii2,ii3;
+   int tmp;
+   for (int ii = 0; ii < numComponents; ii++) {
+      tmp = stats.at<int>(ii,CC_STAT_AREA);
+      if (tmp > third) {
+         if (tmp > second) {
+            if (tmp > first) {
+               third = second;
+               ii3 = ii2;
+               second = first;
+               ii2 = ii1;
+               first = tmp;
+               ii1 = ii;
+            } else {
+               third = second;
+               ii3 = ii2;
+               second = tmp;
+               ii2 = ii;
+            }
+         } else {
+            third = tmp;
+            ii3 = ii;
+         }
+      }
+   }
+   
+   Mat seam_pix_tmp = Mat::zeros(Size(w,h),im.type());
+   for (int ii = 0; ii < numComponents; ii++) {
+      tmp = stats.at<int>(ii,CC_STAT_AREA);
+      if ( (tmp > min_size) && (tmp <= second) ) {
+         seam_pix_tmp += labels == ii;
+      }
+   } 
+   mask = im > logo_thresh;
+   seam_pix_tmp.copyTo(seam_pix,mask);
+}
+
+void get_seam_pix(
    const Mat& im, // gray-scale image of croppxed baseball
    float r, // radius of the baseball
    float cx, // pixel location, x, of the baseball
@@ -33,7 +111,6 @@ void get_seam_pix(
     * Get the pixels that correspond to a baseball's seams by performing
     * edge detection and morphological filtering
     */
-
    // Some useful parameters
    int minSize = 20; // Minimum size for the  seam
    float fracSize = 0.4; // Size for the second seam
@@ -44,13 +121,12 @@ void get_seam_pix(
    // Remove the potential junk around the baseball
    Mat mask = Mat::zeros(Size(w,h),im.type());
    circle(mask,Point(cx,cy),0.90*r,Scalar(255,255,255),-1,8,0);
-
+   
    Mat im_clean;
    im.copyTo(im_clean,mask);
    // Detect the seam and other edges in the image
    Mat edge;
    edge_detect(im_clean,5,75,75,edge);
-   
    // Threshold to get a binary img of the seam
    edge = edge > 0; 
    Mat edge_nb;
