@@ -438,13 +438,16 @@ void getAxis(const Mat& R, vector<float>& axis) {
    axis[2] = d-b;
 }
 
+int visualize = 0;
 int main(int argc, char **argv) {
    
    // Parameters for seam detection
-   int filter_size = 5;
-   int logo_thresh = 0;
-   int min_size = 20; 
-   float lap_thresh = 0;
+   int filter_size = 5; // Size of the bilateral/laplacian filter used to detect edge
+   int logo_thresh = 0; // Threshold for dark pixels that are typically logos. Ignore pixels below this intensity
+   int min_size = 20; // Minimimum size of fragment
+   float min_dist = 1; // Parameter used to estimate the seam. see PPT
+   float lap_thresh = 0; // Laplacian threshold to binarize output of edge detection
+   visualize = 0; // Visualize the estimated seams
 
    // Load the matrices and resource files
    Mat Rmat;
@@ -484,17 +487,19 @@ int main(int argc, char **argv) {
      
       Mat xyz;
       Mat new_edge;
-      estimate_orientation(edge,xyz,r,cx,cy,1,xyz_rotated,cost_matrix,new_edge);
+      estimate_orientation(edge,xyz,r,cx,cy,min_dist,xyz_rotated,cost_matrix,new_edge);
       
       edge_vec.push_back(new_edge);
       xyz_vec.push_back(xyz);
       
      // Uncomment to see results of the seam detection
-     /* 
-      imshow("img",im_vec[ii]);
-      imshow("edge", edge);
-      imshow("new edge",new_edge);
-      waitKey(0); */
+      
+      if (visualize) {
+         imshow("img",im_vec[ii]);
+         imshow("raw seam", edge);
+         imshow("filtered seam",new_edge);
+         waitKey(0); 
+      }
    }
    
    // Estimate the spin here
