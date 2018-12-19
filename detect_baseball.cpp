@@ -14,10 +14,13 @@ void detect_ball(
 
    
    Mat diff = frame2-frame1;
-   int numBallPix = sum(diff > 100)[0];
+   int numBallPix = sum(diff > 100)[0]; 
    if (numBallPix > 150) {
       // We have a ball or something here
-      Mat bg = diff < 30;
+      Mat bg = diff < 30; //30
+      //imshow("frame2",frame2);
+      //imshow("test",bg);
+      //waitKey(30);
       Mat strel = getStructuringElement(MORPH_RECT,Size(5,5));
       Mat bg_erode; 
       erode(bg,bg_erode,strel);
@@ -25,7 +28,12 @@ void detect_ball(
       frame2.copyTo(frame2_tmp,bg_erode==0);
        
       // Let's get the ball only
-      Mat nonbg = bg_erode==0;
+      Mat nonbg_tmp = (bg_erode==0);
+      Mat mask_nz = (frame2>0);
+      Mat nonbg = nonbg_tmp;//nonbg_tmp.mul(mask_nz);
+      //imshow("nonbg",nonbg);
+      //imshow("mask_nz",mask_nz);
+      //waitKey(0);
       Mat labels;
       Mat stats;
       Mat centroids;
@@ -67,8 +75,16 @@ void detect_ball(
       int y = stats.at<int>(ii2,CC_STAT_TOP);
       int w = stats.at<int>(ii2,CC_STAT_WIDTH);
       int h = stats.at<int>(ii2,CC_STAT_HEIGHT);
-      ball_frame = frame2_tmp(Rect(x,y,w,h));
-      
+      /*
+      x = x - w/2;
+      w = 2*w;
+      y = y - h/2;
+      h = 2*h;*/
+      //cout << "Width " << w << "\n";
+      ball_frame = frame2(Rect(x,y,w,h));
+      //imshow("test",ball_frame);
+      //imshow("thresh",ball_frame>0);
+      //waitKey(0);
       // Get approximate radius and center
       //int area = sum(ball_frame>0)[0];
       r = sqrt(second/3.1415926);
@@ -88,6 +104,7 @@ void process_data(
    string root = string("frames/video");
    root += to_string(vidIndx);
    root += "_120fps_frame";
+   //string root = string("BallTests/Test1/");
    string ext = string(".png");
 
    try {
@@ -100,9 +117,10 @@ void process_data(
          im = imread(root+to_string(i)+ext,0);
          if (im.cols == 0) break;
          Mat ball_frame;
-         float r;
+         float r=0;
          Point cent;
          detect_ball(im_prev,im,ball_frame,r,cent);
+         //cout << "Frame " << i << "r=" << r << "cent=" << cent << "\n";
          im_vec.push_back(ball_frame);
          r_vec.push_back(r);
          cent_vec.push_back(cent);

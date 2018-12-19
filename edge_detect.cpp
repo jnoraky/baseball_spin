@@ -37,8 +37,12 @@ void get_seam_pix(
    
    int h = im.rows;
    int w = im.cols;
-   
-   
+  
+   //cout << r << "," << h << "," << w << "\n"; 
+   if (r == 0) {
+      seam_pix = Mat::zeros(h,w,im.type());
+      return;
+   }
    // use to remove the potential junk around the baseball
    Mat mask = Mat::zeros(Size(w,h),im.type());
    circle(mask,Point(cx,cy),0.80*r,Scalar(255,255,255),-1,8,0);
@@ -50,7 +54,8 @@ void get_seam_pix(
    Mat edge_tmp = edge > lap_thresh; 
    Mat edge_nb;
    edge_tmp.copyTo(edge_nb,mask);
-   
+   //plt.figure()
+   //plt.imshow(im) 
    // we want to get all the connected components
    Mat labels;
    Mat stats;

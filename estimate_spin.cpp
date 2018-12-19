@@ -360,7 +360,7 @@ float estimate_rotation(
          float rtmp = r_vec[ii];
          float cx = cent_vec[ii].x;
          float cy = cent_vec[ii].y;
-         
+         //cout << rtmp << "\n";   
          // Prepare the non-zero coordinates of the current 3D seam
          vector<float> x_data;
          vector<float> y_data;
@@ -382,6 +382,8 @@ float estimate_rotation(
          Mat yy = y_nzCoord[ii];
          
          int scale = xx.rows;
+         //cout << scale << "\n";
+         if (scale != 0) {
          int num_nz = numNz;
          Mat dx = Mat::ones(Size(1,scale),CV_32F)*xxdata-xx*Mat::ones(Size(num_nz,1),CV_32F);
          Mat dx2 = dx.mul(dx);
@@ -404,6 +406,9 @@ float estimate_rotation(
          Mat sumMat;
          reduce(err2,sumMat,0,CV_REDUCE_SUM);
          tmpCost += (1.0*sumMat.at<float>(0)/numNz);
+         } else {
+            tmpCost += 1e100;
+         }
       }
 
       if (tmpCost < minCost) {
@@ -469,22 +474,24 @@ int main(int argc, char **argv) {
    vector<Point> cent_vec;
    
    process_data(stoi(argv[1]),im_vec,r_vec,cent_vec);
-   reverse(im_vec.begin(),im_vec.end());
+   /*reverse(im_vec.begin(),im_vec.end());
    reverse(r_vec.begin(),r_vec.end());
    reverse(cent_vec.begin(),cent_vec.end());
-   
+   */
    cout << "Video " << argv[1] << "\n";
 
    // For each frame, detect the seams and align the 3D model
    for (int ii = 0; ii < im_vec.size(); ii++) {
-
       float r = r_vec[ii];
       float cx = cent_vec[ii].x;
       float cy = cent_vec[ii].y;
-       
+      Mat im_tmp;
+      if (r==0) im_tmp = Mat::zeros(24,24,CV_8UC1);
+      else im_tmp = im_vec[ii]; 
       Mat edge;
-      get_seam_pix(im_vec[ii],r,cx,cy,filter_size,logo_thresh,min_size,lap_thresh,edge);
-     
+      
+      get_seam_pix(im_tmp,r,cx,cy,filter_size,logo_thresh,min_size,lap_thresh,edge);
+      //cout << "here\n"; 
       Mat xyz;
       Mat new_edge;
       estimate_orientation(edge,xyz,r,cx,cy,min_dist,xyz_rotated,cost_matrix,new_edge);
@@ -495,19 +502,21 @@ int main(int argc, char **argv) {
      // Uncomment to see results of the seam detection
       
       if (visualize) {
-         imshow("img",im_vec[ii]);
+         cout << "Frame " << ii << "\n";
+         imshow("img",im_tmp);
          imshow("raw seam", edge);
          imshow("filtered seam",new_edge);
          waitKey(0); 
       }
    }
-   
+   //cout << "Done\n"; 
    // Estimate the spin here
    float bestErr = 1e100;
    //float bestErr = 0;
    float bestSpin = 0;
    Mat bestR;
    for (int start = 0; start < xyz_vec.size()-3; start++) {
+      //cout << start << "\n";
       Mat R;
       Mat xyz_tmp;
       xyz_vec[start].copyTo(xyz_tmp);
@@ -528,12 +537,11 @@ int main(int argc, char **argv) {
       }*/
       
    }
-   
    // Output everything
    vector<float> axis(3);
    getAxis(bestR,axis);
    cout << "Best error is: " << bestErr << "\n";
    cout << "Spin is: " << bestSpin << "\n"; 
-   cout << "Axis is: [" << -axis[0] << "," << -axis[1] << "," << -axis[2] << "]\n";
+   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n";
 }
 
