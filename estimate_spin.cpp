@@ -452,7 +452,7 @@ int main(int argc, char **argv) {
    int min_size = 20; // Minimimum size of fragment
    float min_dist = 1; // Parameter used to estimate the seam. see PPT
    float lap_thresh = 0; // Laplacian threshold to binarize output of edge detection
-   visualize = 0; // Visualize the estimated seams
+   visualize = 1; // Visualize the estimated seams
 
    // Load the matrices and resource files
    Mat Rmat;

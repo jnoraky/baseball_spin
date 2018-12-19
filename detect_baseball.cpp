@@ -21,7 +21,7 @@ void detect_ball(
       //imshow("frame2",frame2);
       //imshow("test",bg);
       //waitKey(30);
-      Mat strel = getStructuringElement(MORPH_RECT,Size(5,5));
+      Mat strel = getStructuringElement(MORPH_RECT,Size(25,25));
       Mat bg_erode; 
       erode(bg,bg_erode,strel);
       Mat frame2_tmp;
@@ -30,7 +30,7 @@ void detect_ball(
       // Let's get the ball only
       Mat nonbg_tmp = (bg_erode==0);
       Mat mask_nz = (frame2>0);
-      Mat nonbg = nonbg_tmp;//nonbg_tmp.mul(mask_nz);
+      Mat nonbg = nonbg_tmp.mul(mask_nz);
       //imshow("nonbg",nonbg);
       //imshow("mask_nz",mask_nz);
       //waitKey(0);
@@ -101,10 +101,12 @@ void process_data(
    vector<float>& r_vec,
    vector<Point>& cent_vec) {
    
-   string root = string("frames/video");
+   //string root = string("frames/video");
+   //root += to_string(vidIndx);
+   //root += "_120fps_frame";
+   string root = string("BallTests/Test");
    root += to_string(vidIndx);
-   root += "_120fps_frame";
-   //string root = string("BallTests/Test1/");
+   root += "/";
    string ext = string(".png");
 
    try {
