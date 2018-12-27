@@ -526,7 +526,7 @@ int main(int argc, char **argv) {
       if (minCost < bestErr) {
          bestErr = minCost;
          R.copyTo(bestR);
-         bestSpin = getSpin(R,120);
+         bestSpin = getSpin(R,240);
       }
       /*
       float maxCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]),3);
