@@ -71,18 +71,42 @@ void estimate_orientation(
    const Mat& xyz_rotated,
    const Mat& cost_matrix,
    Mat& newEdge) {
+   
+   /*
+   This takes in the raw edge fragments (which hopefully includes the seam 
+   fragments) and uses the 3D model of the seam to eliminate fragments that 
+   cannot possibly be part of the seam. This means that blemishes that are not
+   eliminated and happen to fall in the right area can confuse our algorithm.
+   We need to test these scenarios...
 
+   The output of this is a cleaned up binary image of the seams AND the 
+   3D orientation of the model.
+   */
+
+   /* Given a 3D model of a seam, we first project it to a 2D image. We call this
+   the projected seam.
+
+   For every pixel in the computed edge fragments (obtained in get_seam_pix),
+   we compute its distance to the closest point in the projected seam. If 
+   distance is smaller than min_dist, we consider that edge fragment pixel valid.
+   We repeat this for every pixel in the edge fragment and total up the number of 
+   valid pixels.
+
+   We then do this for every orientation of the 3D model and take the 3D 
+   orientation that yields the highest number of valid pixels.
+   
+   The computation here is weird looking because I have pre-computed 
+   the orientations (xyz_rotated), and the the computation of the minimum distance
+   from the edge fragments to the projected seam (cost_matrix)  
+   */
    Mat edge_rescaled;
    rescale_edge(edge,edge_rescaled,r,cx,cy);
    edge_rescaled.convertTo(edge_rescaled,CV_32F);
-
-
    int n = cost_matrix.rows;
    // Flatten the edge into one-channel, one-row and repeat
    // for n rows
    Mat tmp = Mat::ones(Size(1,n),edge_rescaled.type())*
       edge_rescaled.reshape(1,1);
-   
    // Compute the best cost
    Mat prod_tmp = cost_matrix.mul(tmp) < 255*min_dist;
    Mat prod;
@@ -90,7 +114,7 @@ void estimate_orientation(
    Mat res; 
    reduce(prod,res,1,CV_REDUCE_SUM);
    
-   // Find the lowest 
+   // Take the 3D orientation that has the highest number of valid pixels
    double min,max;
    Point min_loc,max_loc;
    minMaxLoc(res, &min, &max, &min_loc, &max_loc);
@@ -98,6 +122,11 @@ void estimate_orientation(
    int indx = max_loc.y;
    xyz = xyz_rotated(Rect(0,3*indx,396,3));
     
+   /*
+   In addition to the orientation of the 3D model, I know remove 
+   all the computed edge fragments that do not intersect the projected
+     seam pixels. 
+   */
    newEdge = Mat::zeros(edge.size(),edge.type());
    Mat labels;
    Mat stats;
@@ -121,191 +150,15 @@ void estimate_orientation(
 }
 
 
-void estimate_orientation(
-   const Mat& edge,
-   Mat& xyz,
-   float r,
-   float cx,
-   float cy,
-   const Mat& xyz_rotated,
-   const Mat& cost_matrix) {
-
-   Mat edge_rescaled;
-   rescale_edge(edge,edge_rescaled,r,cx,cy);
-   edge_rescaled.convertTo(edge_rescaled,CV_32F);
-
-
-   int n = cost_matrix.rows;
-   // Flatten the edge into one-channel, one-row and repeat
-   // for n rows
-   Mat tmp = Mat::ones(Size(1,n),edge_rescaled.type())*
-      edge_rescaled.reshape(1,1);
-   
-   // Compute the best cost
-   Mat prod = cost_matrix.mul(tmp);
-   Mat res; 
-   reduce(prod,res,1,CV_REDUCE_SUM);
-   
-   // Find the lowest 
-   double min,max;
-   Point min_loc,max_loc;
-   minMaxLoc(res, &min, &max, &min_loc, &max_loc);
-   
-   int indx = min_loc.y;
-   xyz = xyz_rotated(Rect(0,3*indx,396,3));
-  
-   /*
-   Mat xyz_curr = xyz; 
-   // For debugging purposes
-   r = 20;
-   cx = 24;
-   cy = 24;
-   Mat est_edge = Mat::zeros(edge_rescaled.size(),edge_rescaled.type());
-   edge_rescaled.copyTo(est_edge);
-   //cout << xyz_curr.size() << "\n";
-   int numPts = 396;//#xyz_curr.cols;
-   for ( int i = 0; i < numPts; i++ ) {
-      float z = xyz_curr.at<float>(2,i);
-      if (z > 0) {
-         int x = r*xyz_curr.at<float>(0,i)+cx;
-         int y = r*xyz_curr.at<float>(1,i)+cy;
-         est_edge.at<float>(y,x) = 255;
-      }
-   }
-   imshow("edge", edge_rescaled);
-   imshow("est", est_edge);
-   waitKey(0);*/
-}
-
 float estimate_rotation(
-   const Mat& xyz,
-   Mat& bestR,
-   const vector<Mat>& edge_vec,
-   const vector<float>& r_vec,
-   const vector<Point>& cent_vec,
+   const Mat& xyz, // Initial orientation 
+   Mat& bestR, // Best radius
+   const vector<Mat>& edge_vec, // All seam pixels
+   const vector<float>& r_vec, // All baseball radius
+   const vector<Point>& cent_vec, // All centers
    int start,
    const Mat& Rmat2,
-   int numIter,
-   float min_dist
-   ) {
-
-   float minCost = 0;//1e50; // Arbitraily large
-
-   int numRot = numIter;//1000;
-   int numEdges = edge_vec.size();
- 
-   // Get a vector of the non-zero x and y coordinates
-   // of the edges
-   vector<Mat> x_nzCoord;
-   vector<Mat> y_nzCoord;
-   for (int ii = 0; ii < numEdges; ii++) {
-      //Mat nztmp;
-      vector<float> xx_vec;
-      vector<float> yy_vec;
-      Mat tmp_edge = edge_vec[ii];
-      int total = 0;
-
-      for (int y = 0; y < tmp_edge.rows; y++) {
-         for (int x = 0; x < tmp_edge.cols; x++) {
-            if (tmp_edge.at<char>(y,x)) {
-               xx_vec.push_back(x);
-               yy_vec.push_back(y);
-               total++;
-            }
-         }
-      }
-      Mat xx_Mat(total,1,CV_32F);
-      Mat yy_Mat(total,1,CV_32F);
-      
-      memcpy(xx_Mat.data, xx_vec.data(), total*sizeof(float));
-      memcpy(yy_Mat.data, yy_vec.data(), total*sizeof(float));
-      
-      x_nzCoord.push_back(xx_Mat);
-      y_nzCoord.push_back(yy_Mat);
-   }
-   
-   //Mat Rmat2;
-   //convert_to_mat("rotations2.bin",Rmat2);
-   // Get vector of non-zero
-   Mat xyz_tmp;
-   
-   for (int jj = 0; jj < numRot; jj += 1) {
-      Mat Rtmp = Rmat2(Rect(0,3*jj,3,3));
-      xyz.copyTo(xyz_tmp);
-      
-      float tmpCost = 0;
-      // Hard-coded....should change this
-      for (int ii = start+1; ii < start+4; ii++) {
-         xyz_tmp = Rtmp*xyz_tmp;
-         float rtmp = r_vec[ii];
-         float cx = cent_vec[ii].x;
-         float cy = cent_vec[ii].y;
-         
-         // Prepare the non-zero coordinates of the current 3D seam
-         vector<float> x_data;
-         vector<float> y_data;
-         int numNz = 0;
-         
-         for (int kk = 0; kk < 396; kk += 10) {
-            if (xyz_tmp.at<float>(2,kk) > 0) {
-               x_data.push_back( rtmp*xyz_tmp.at<float>(0,kk)+cx );
-               y_data.push_back( rtmp*xyz_tmp.at<float>(1,kk)+cy );
-               numNz++;
-            }
-         }
-         Mat xxdata(1,numNz,CV_32F); 
-         Mat yydata(1,numNz,CV_32F);
-         memcpy(xxdata.data, x_data.data(), numNz*sizeof(float));
-         memcpy(yydata.data, y_data.data(), numNz*sizeof(float));
-        
-         Mat xx = x_nzCoord[ii];
-         Mat yy = y_nzCoord[ii];
-         int scale = xx.rows;
-         int num_nz = numNz;
-         Mat dx = Mat::ones(Size(1,scale),CV_32F)*xxdata-xx*Mat::ones(Size(num_nz,1),CV_32F);
-         Mat dx2 = dx.mul(dx);
-         Mat dy = Mat::ones(Size(1,scale),CV_32F)*yydata-yy*Mat::ones(Size(num_nz,1),CV_32F);
-         Mat dy2 = dy.mul(dy);
-         Mat err = dx2+dy2;
-         Mat err2;
-         reduce(err,err2,1,CV_REDUCE_MIN);
-         /* 
-         // Get the max value
-         Mat maxMat;
-         reduce(err2,maxMat,0,CV_REDUCE_MAX);
-         if (maxMat.at<float>(0) > 5e2) { 
-            //cout << "here!!!\n";
-            tmpCost = 1e10;
-            break;
-         }*/
-         //cout << err2 << "\n";
-         Mat err2_tmp = err2 < min_dist;
-         Mat err2_tmp2;
-         err2_tmp.convertTo(err2_tmp2,CV_32F);
-         Mat sumMat;
-         reduce(err2_tmp2,sumMat,0,CV_REDUCE_SUM);
-         //cout << sumMat << "\n";
-         tmpCost += (1.0*sumMat.at<float>(0));
-      }
-
-      if (tmpCost > minCost) {
-         minCost = tmpCost;
-         Rtmp.copyTo(bestR);
-      }
-   }
-   return minCost;
-}
-
-
-float estimate_rotation(
-   const Mat& xyz,
-   Mat& bestR,
-   const vector<Mat>& edge_vec,
-   const vector<float>& r_vec,
-   const vector<Point>& cent_vec,
-   int start,
-   const Mat& Rmat2,
-   int numIter
+   int numIter // Number of rotations to try
    ) {
 
    float minCost = 1e100; // Arbitraily large
@@ -313,8 +166,10 @@ float estimate_rotation(
    int numRot = numIter;//1000;
    int numEdges = edge_vec.size();
  
-   // Get a vector of the non-zero x and y coordinates
-   // of the edges
+   /* For every frame, we get the x and y coordinates for every 
+     pixel in the computed seams. We will use this to compute the 
+   distance to the projected seam   
+   */
    vector<Mat> x_nzCoord;
    vector<Mat> y_nzCoord;
    for (int ii = 0; ii < numEdges; ii++) {
@@ -342,11 +197,8 @@ float estimate_rotation(
       x_nzCoord.push_back(xx_Mat);
       y_nzCoord.push_back(yy_Mat);
    }
-   //cout << "here\n"; 
    
-   //Mat Rmat2;
-   //convert_to_mat("rotations2.bin",Rmat2);
-   // Get vector of non-zero
+   
    Mat xyz_tmp;
    
    for (int jj = 0; jj < numRot; jj += 1) {
@@ -356,16 +208,19 @@ float estimate_rotation(
       float tmpCost = 0;
       // Hard-coded....should change this
       for (int ii = start+1; ii < start+4; ii++) {
+         // First we rotate the 3D model using the current rotation
          xyz_tmp = Rtmp*xyz_tmp;
          float rtmp = r_vec[ii];
          float cx = cent_vec[ii].x;
          float cy = cent_vec[ii].y;
-         //cout << rtmp << "\n";   
-         // Prepare the non-zero coordinates of the current 3D seam
          vector<float> x_data;
          vector<float> y_data;
          int numNz = 0;
-         
+        
+         // We then get the x and y coordinates of all the projected seam 
+         //pixels
+
+         // This hack speeds things up 
          for (int kk = 0; kk < 396; kk += 10) {
             if (xyz_tmp.at<float>(2,kk) > 0) {
                x_data.push_back( rtmp*xyz_tmp.at<float>(0,kk)+cx );
@@ -381,34 +236,36 @@ float estimate_rotation(
          Mat xx = x_nzCoord[ii];
          Mat yy = y_nzCoord[ii];
          
+         // We only consider consective frames that all have *some* 
+         // computed seam fragments
+         // This is the linear algebra where for each pixel of the computed
+         // seam, we compute the distance to the closest projected seam
+         // and add it up for every computed seam pixel
          int scale = xx.rows;
-         //cout << scale << "\n";
          if (scale != 0) {
-         int num_nz = numNz;
-         Mat dx = Mat::ones(Size(1,scale),CV_32F)*xxdata-xx*Mat::ones(Size(num_nz,1),CV_32F);
-         Mat dx2 = dx.mul(dx);
-         Mat dy = Mat::ones(Size(1,scale),CV_32F)*yydata-yy*Mat::ones(Size(num_nz,1),CV_32F);
-         Mat dy2 = dy.mul(dy);
-         Mat err = dx2+dy2;
-         Mat err2;
-         reduce(err,err2,1,CV_REDUCE_MIN);
+            int num_nz = numNz;
+            Mat dx = Mat::ones(Size(1,scale),CV_32F)*xxdata-xx*Mat::ones(Size(num_nz,1),CV_32F);
+            Mat dx2 = dx.mul(dx);
+            Mat dy = Mat::ones(Size(1,scale),CV_32F)*yydata-yy*Mat::ones(Size(num_nz,1),CV_32F);
+            Mat dy2 = dy.mul(dy);
+            Mat err = dx2+dy2;
+            Mat err2;
+            reduce(err,err2,1,CV_REDUCE_MIN);
         
+            // Get the max value
+            Mat maxMat;
+            reduce(err2,maxMat,0,CV_REDUCE_MAX);
+            if (maxMat.at<float>(0) > 5e2) { 
+               tmpCost = 1e10;
+               break;
+            }
          
-         // Get the max value
-         Mat maxMat;
-         reduce(err2,maxMat,0,CV_REDUCE_MAX);
-         if (maxMat.at<float>(0) > 5e2) { 
-            //cout << "here!!!\n";
-            tmpCost = 1e10;
-            break;
-         }
-         //cout << "boom\n";
-         Mat sumMat;
-         reduce(err2,sumMat,0,CV_REDUCE_SUM);
-         tmpCost += (1.0*sumMat.at<float>(0)/numNz);
-         } else {
-            tmpCost += 1e100;
-         }
+            Mat sumMat;
+            reduce(err2,sumMat,0,CV_REDUCE_SUM);
+            tmpCost += (1.0*sumMat.at<float>(0)/numNz);
+            }  else {
+               tmpCost += 1e100;
+            }
       }
 
       if (tmpCost < minCost) {
@@ -416,15 +273,11 @@ float estimate_rotation(
          Rtmp.copyTo(bestR);
       }
    }
-   return minCost;
+
+   return minCost; // We return both the smallest cost and the bestR
 }
 
 float getSpin(const Mat& R, int fps) {
-   //float trR = R.at<float>(0,0)+R.at<float>(1,1)+R.at<float>(2,2);
-   //cout << R.t()*R << "\n";
-   //makeRot(R);
-   //cout << R.t()*R << "\n";
- 
    float trR = trace(R)[0];
    float angle = acos(0.5*(trR-1));
    float PI = 3.1415926;
@@ -444,17 +297,37 @@ void getAxis(const Mat& R, vector<float>& axis) {
 }
 
 int visualize = 0;
+
 int main(int argc, char **argv) {
    
    // Parameters for seam detection
-   int filter_size = 5; // Size of the bilateral/laplacian filter used to detect edge
-   int logo_thresh = 0; // Threshold for dark pixels that are typically logos. Ignore pixels below this intensity
+   // Size of the bilateral/laplacian filter used to detect 
+   // the edge. Ranges between 3 and 7 result in reasonable output
+   // See edge_detect in edge_detect.cpp 
+   int filter_size = 5; 
+   // Threshold for the logos. In the videos we have seen, logos are dark
+   // This corresponds to low pixel intensities. This does the following
+   // in python-esque code img[img<logo_thresh] = 0
+   // Our algorithm ignores pixels taht are set to 0
+   // See get_seam_pix in edge_detect.cpp
+   int logo_thresh = 0; 
+   // Minimium fragment size of potential seam
+   // See get_seam_pix in edge_detect.cpp 
    int min_size = 20; // Minimimum size of fragment
-   float min_dist = 1; // Parameter used to estimate the seam. see PPT
-   float lap_thresh = 0; // Laplacian threshold to binarize output of edge detection
+   // This is used to align the 3D model of the edge to the edge fragment.
+   // We say that an edge fragment pixel matches the projected seam
+   // if the distance from the fragment pixel to the closest projected seam
+   // is within 1 pixel  
+   float min_dist = 1; 
+   // Threshold to convert the Laplacian output into 
+   // a binary image where each pixel corresponds to a potential seam
+   float lap_thresh = 0;
+
    visualize = 1; // Visualize the estimated seams
 
-   // Load the matrices and resource files
+   // Load the resource files
+   // These matrices contain pre-computed 3D seam orientations,
+   // all of the rotation matrices, etc.
    Mat Rmat;
    convert_to_mat("rotations.bin",Rmat);
    Mat xyz;
@@ -466,7 +339,7 @@ int main(int argc, char **argv) {
    Mat Rmat2;
    convert_to_mat("rotations2.bin",Rmat2);
    
-   // Pre-process and load in the data
+   // Pre-process and load in the data as specified by the user
    vector<Mat> im_vec;
    vector<Mat> edge_vec;
    vector<Mat> xyz_vec;
@@ -474,10 +347,7 @@ int main(int argc, char **argv) {
    vector<Point> cent_vec;
    
    process_data(stoi(argv[1]),im_vec,r_vec,cent_vec);
-   /*reverse(im_vec.begin(),im_vec.end());
-   reverse(r_vec.begin(),r_vec.end());
-   reverse(cent_vec.begin(),cent_vec.end());
-   */
+   
    cout << "Video " << argv[1] << "\n";
 
    // For each frame, detect the seams and align the 3D model
@@ -489,17 +359,15 @@ int main(int argc, char **argv) {
       if (r==0) im_tmp = Mat::zeros(24,24,CV_8UC1);
       else im_tmp = im_vec[ii]; 
       Mat edge;
-      
+     
+      // Get both the correctly oriented 3D model and the edge 
       get_seam_pix(im_tmp,r,cx,cy,filter_size,logo_thresh,min_size,lap_thresh,edge);
-      //cout << "here\n"; 
       Mat xyz;
       Mat new_edge;
       estimate_orientation(edge,xyz,r,cx,cy,min_dist,xyz_rotated,cost_matrix,new_edge);
-      
       edge_vec.push_back(new_edge);
       xyz_vec.push_back(xyz);
       
-     // Uncomment to see results of the seam detection
       
       if (visualize) {
          cout << "Frame " << ii << "\n";
@@ -509,18 +377,35 @@ int main(int argc, char **argv) {
          waitKey(0); 
       }
    }
-   //cout << "Done\n"; 
-   // Estimate the spin here
+  
+   // Estimate the spin
+  /*
+     Basic idea is we take 4 consecutive frames, where for each frame we 
+     have an oriented 3D model and the pixels that we believe to be the seam. The 
+     goal is to find a rotation matrix, R, so that when we apply it sequentially
+     to the first orientated model, its projection "matches" the seam pixels for
+     the subsequent frames. 
+
+     The process is as follows. We first apply the rotation to the initial 3D 
+     orientation. We then project it to the same image as the seam in the next frame.     We can measure how well this projection  matches the seams in the next frame 
+     by taking every pixel of the seam, and computing 
+     its distance to the closest point on the projection. We sum up the distance 
+     for every pixel and divide by the total number of pixels. 
+
+     We then apply the rotation again and repeat this process for the next frame..
+    */ 
+   
+   /*
+      We repeat the above process over a sliding window, and take the rotation
+      that has the smallest error.
+   */
    float bestErr = 1e100;
-   //float bestErr = 0;
    float bestSpin = 0;
    Mat bestR;
    for (int start = 0; start < xyz_vec.size()-3; start++) {
-      //cout << start << "\n";
       Mat R;
       Mat xyz_tmp;
       xyz_vec[start].copyTo(xyz_tmp);
-      
       float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]));
       
       if (minCost < bestErr) {
@@ -528,16 +413,10 @@ int main(int argc, char **argv) {
          R.copyTo(bestR);
          bestSpin = getSpin(R,240);
       }
-      /*
-      float maxCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]),3);
-      if (maxCost > bestErr) {
-         bestErr = maxCost;
-         R.copyTo(bestR);
-         bestSpin = getSpin(R,120);
-      }*/
       
    }
-   // Output everything
+   
+   // Convert rotation into spin and spin axis
    vector<float> axis(3);
    getAxis(bestR,axis);
    cout << "Best error is: " << bestErr << "\n";

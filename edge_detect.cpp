@@ -8,25 +8,30 @@ using namespace cv;
 using namespace std;
 
 void edge_detect(
-   const Mat& im, // baseball img
-   int d, // Bilateral Filter params
-   double sigmaC,
-   double sigmaS,
+   const Mat& im, // Cropped image of the baseball
+   int d, // Filter size 
+   double sigmaC, // Bilateral filter params
+   double sigmaS, // Bilateral filter params
    Mat& edge
    ) {
-   /* Get the edges that correspond the baseball seam and others.
-    * Used as a first pass, and output needs to be cleaned
-    */
+   /* This does the initial edge detection of the ball image.
+      This is a first pass, where we get edges that correspond 
+      to the seam, blemishes, logos, and the ball edge.
+      The output is the laplacian which is another image that positive 
+      for a transition from light to dark aka regions around the seam
+   */
+  
    Mat smooth;
    bilateralFilter(im,smooth,d,sigmaC,sigmaS);
-   Laplacian(smooth,edge,CV_64F,5); // Assume kernel size = 5 
+   Laplacian(smooth,edge,CV_64F,d); // Assume kernel size = 5 
 }
 
+
 void get_seam_pix(
-   const Mat& im, // cropped image of baseball
-   float r,
-   float cx,
-   float cy,
+   const Mat& im, // Cropped Image of baseball
+   float r, // Radius of the baseball
+   float cx, // Center x coord
+   float cy, // Center y coord
    int filter_size, // Size of bilateral and laplacian filter
    int logo_thresh, // Logos are darker, and 
    // we only consider pixels brighter than this threshold 
@@ -34,35 +39,52 @@ void get_seam_pix(
    float lap_thresh, // Laplacian threshold to binarize edge
    Mat& seam_pix             
    ){
-   
+
+   /*
+      This is the first function used to roughly detect the seam pixels.
+      We first use  a crude edge detection to find all the candidate
+      seam pixels. We then ignore small fragments, fragments that correspond
+     to dark pixels (logos).  
+   */   
    int h = im.rows;
    int w = im.cols;
   
-   //cout << r << "," << h << "," << w << "\n"; 
    if (r == 0) {
       seam_pix = Mat::zeros(h,w,im.type());
       return;
    }
-   // use to remove the potential junk around the baseball
+   
+   // Remove potential junk around the baseball image
+   // by keeping only the pixels within 80% of the baseball radius
+   // and setting all the other pixels to 0, which our algorithm
+   // ignores
    Mat mask = Mat::zeros(Size(w,h),im.type());
    circle(mask,Point(cx,cy),0.80*r,Scalar(255,255,255),-1,8,0);
    
-   // Detect the seam and other edges in the image
+   // Perform the crude edge detection see comments above
    Mat edge;
    edge_detect(im,filter_size,75,75,edge);
-   // Threshold to get a binary img of the seam
+   // We threshold the laplacian to get a binary img of the seam
+   // At this point we have a binary image where non-zero values
+   // correspond to potential seam fragments
    Mat edge_tmp = edge > lap_thresh; 
    Mat edge_nb;
    edge_tmp.copyTo(edge_nb,mask);
-   //plt.figure()
-   //plt.imshow(im) 
-   // we want to get all the connected components
+   
+   // Because edge detection is not perfect, all of the seams
+   // May not be connected. So our image is binary image composed of 
+   // different connected components that may be seams or not.
+   // We use OpenCV to identify them and compute interesting statistics
+   // Like the area
    Mat labels;
    Mat stats;
    Mat centroids;
    int numComponents = connectedComponentsWithStats(edge_nb,labels,stats,
       centroids,4);
    
+   // This is just an idiosyncracy of the opencv function. We do the next set of 
+   //lines to retain all the fragments above a certain size (min_size pixels)
+
    // Get second and third largest index
    // Clearly not the most elegant way to do this
    int first = 0;
@@ -101,6 +123,9 @@ void get_seam_pix(
          seam_pix_tmp += labels == ii;
       }
    } 
+
+   // Finally we ignore all pixels that correspond that correspond 
+   // to dark patches
    mask = im > logo_thresh;
    seam_pix_tmp.copyTo(seam_pix,mask);
 }
