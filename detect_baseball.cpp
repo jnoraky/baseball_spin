@@ -96,6 +96,50 @@ void detect_ball(
 }
 
 void process_data(
+   const char * path_to_frames,
+   const char * prefix,
+   vector<Mat>& im_vec,
+   vector<float>& r_vec,
+   vector<Point>& cent_vec) {
+   
+   //string root = string("frames/video");
+   //root += to_string(vidIndx);
+   //root += "_120fps_frame";
+   string root = string(path_to_frames);
+   root += "/";
+   root += prefix;
+   string ext = string(".png");
+   /*
+   string root = string("Example");
+   root += to_string(vidIndx);
+   root += "/fullFrame_";
+   string ext = string(".png");
+   */
+
+   try {
+      int i = 0;
+      Mat im_prev;
+      Mat im = imread(root+to_string(i)+ext,0);
+      i = 1;
+      while (true) {
+         im.copyTo(im_prev);
+         im = imread(root+to_string(i)+ext,0);
+         if (im.cols == 0) break;
+         Mat ball_frame;
+         float r=0;
+         Point cent;
+         detect_ball(im_prev,im,ball_frame,r,cent);
+         //cout << "Frame " << i << "r=" << r << "cent=" << cent << "\n";
+         im_vec.push_back(ball_frame);
+         r_vec.push_back(r);
+         cent_vec.push_back(cent);
+         i++;
+      }
+   } catch (...) { cout << "Cannot load frames!!! Check if they exist\n"; }
+}
+
+
+void process_data(
    int vidIndx,
    vector<Mat>& im_vec,
    vector<float>& r_vec,
@@ -104,9 +148,9 @@ void process_data(
    //string root = string("frames/video");
    //root += to_string(vidIndx);
    //root += "_120fps_frame";
-   string root = string("BallTests/Test");
+   string root = string("Example");
    root += to_string(vidIndx);
-   root += "/";
+   root += "/fullFrame_";
    string ext = string(".png");
 
    try {

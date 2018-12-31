@@ -294,36 +294,45 @@ void getAxis(const Mat& R, vector<float>& axis) {
    axis[0] = h-f;
    axis[1] = c-g;
    axis[2] = d-b;
+   float norm = sqrt(pow(h-f,2)+pow(c-g,2)+pow(d-b,2));
+   axis[0] = axis[0]/norm;
+   axis[1] = axis[1]/norm;
+   axis[2] = axis[2]/norm;
 }
 
 int visualize = 0;
 
 int main(int argc, char **argv) {
-   
+ 
+   char * path_to_frames = argv[1];
+   char * prefix = argv[2];  
+
    // Parameters for seam detection
    // Size of the bilateral/laplacian filter used to detect 
    // the edge. Ranges between 3 and 7 result in reasonable output
    // See edge_detect in edge_detect.cpp 
-   int filter_size = 5; 
+   int filter_size = stoi(argv[3]); 
    // Threshold for the logos. In the videos we have seen, logos are dark
    // This corresponds to low pixel intensities. This does the following
    // in python-esque code img[img<logo_thresh] = 0
    // Our algorithm ignores pixels taht are set to 0
    // See get_seam_pix in edge_detect.cpp
-   int logo_thresh = 0; 
+   int logo_thresh = stoi(argv[4]); 
    // Minimium fragment size of potential seam
    // See get_seam_pix in edge_detect.cpp 
-   int min_size = 20; // Minimimum size of fragment
+   int min_size = stoi(argv[5]); // Minimimum size of fragment
    // This is used to align the 3D model of the edge to the edge fragment.
    // We say that an edge fragment pixel matches the projected seam
    // if the distance from the fragment pixel to the closest projected seam
    // is within 1 pixel  
-   float min_dist = 1; 
+   float min_dist = stof(argv[6]); 
    // Threshold to convert the Laplacian output into 
    // a binary image where each pixel corresponds to a potential seam
-   float lap_thresh = 0;
+   float lap_thresh = stof(argv[7]);
+   
+   visualize = stoi(argv[8]); // Visualize the estimated seams
+   int numR2try = stoi(argv[9]); // Number of rotations to try
 
-   visualize = 1; // Visualize the estimated seams
 
    // Load the resource files
    // These matrices contain pre-computed 3D seam orientations,
@@ -346,7 +355,7 @@ int main(int argc, char **argv) {
    vector<float> r_vec;
    vector<Point> cent_vec;
    
-   process_data(stoi(argv[1]),im_vec,r_vec,cent_vec);
+   process_data(path_to_frames,prefix,im_vec,r_vec,cent_vec);
    
    cout << "Video " << argv[1] << "\n";
 
@@ -406,12 +415,12 @@ int main(int argc, char **argv) {
       Mat R;
       Mat xyz_tmp;
       xyz_vec[start].copyTo(xyz_tmp);
-      float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,stoi(argv[2]));
+      float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,numR2try);
       
       if (minCost < bestErr) {
          bestErr = minCost;
          R.copyTo(bestR);
-         bestSpin = getSpin(R,240);
+         bestSpin = getSpin(R,120);
       }
       
    }
