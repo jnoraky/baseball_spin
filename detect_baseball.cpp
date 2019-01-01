@@ -97,7 +97,8 @@ void detect_ball(
 
 void process_data(
    const char * path_to_frames,
-   const char * prefix,
+   //const char * prefix,
+   int start_indx,
    vector<Mat>& im_vec,
    vector<float>& r_vec,
    vector<Point>& cent_vec) {
@@ -107,7 +108,7 @@ void process_data(
    //root += "_120fps_frame";
    string root = string(path_to_frames);
    root += "/";
-   root += prefix;
+   //root += prefix;
    string ext = string(".png");
    /*
    string root = string("Example");
@@ -117,10 +118,11 @@ void process_data(
    */
 
    try {
-      int i = 0;
+      int i = start_indx;
       Mat im_prev;
+      //cout << root+to_string(i)+ext << "\n";
       Mat im = imread(root+to_string(i)+ext,0);
-      i = 1;
+      i = start_indx+1;
       while (true) {
          im.copyTo(im_prev);
          im = imread(root+to_string(i)+ext,0);

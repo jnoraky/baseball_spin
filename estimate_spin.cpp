@@ -248,7 +248,10 @@ float estimate_rotation(
             Mat dx2 = dx.mul(dx);
             Mat dy = Mat::ones(Size(1,scale),CV_32F)*yydata-yy*Mat::ones(Size(num_nz,1),CV_32F);
             Mat dy2 = dy.mul(dy);
-            Mat err = dx2+dy2;
+            Mat err_tmp = dx2+dy2;
+            Mat err;
+            sqrt(err_tmp,err);
+            //err = err.pow(0.5);
             Mat err2;
             reduce(err,err2,1,CV_REDUCE_MIN);
         
@@ -305,8 +308,12 @@ int visualize = 0;
 int main(int argc, char **argv) {
  
    char * path_to_frames = argv[1];
-   char * prefix = argv[2];  
-
+   int start_indx = stoi(argv[2]);
+   //char * prefix = "";//argv[2];  
+   //if (prefix  == " ") prefix = "";
+   //cout << path_to_frames << "\n";
+   //cout << prefix << "\n";
+   
    // Parameters for seam detection
    // Size of the bilateral/laplacian filter used to detect 
    // the edge. Ranges between 3 and 7 result in reasonable output
@@ -355,7 +362,7 @@ int main(int argc, char **argv) {
    vector<float> r_vec;
    vector<Point> cent_vec;
    
-   process_data(path_to_frames,prefix,im_vec,r_vec,cent_vec);
+   process_data(path_to_frames,start_indx,im_vec,r_vec,cent_vec);
    
    cout << "Video " << argv[1] << "\n";
 
@@ -416,20 +423,30 @@ int main(int argc, char **argv) {
       Mat xyz_tmp;
       xyz_vec[start].copyTo(xyz_tmp);
       float minCost = estimate_rotation(xyz_tmp,R,edge_vec,r_vec,cent_vec,start,Rmat2,numR2try);
+     int numEdge = 0;
+      for (int kk = start; kk < start+4; kk++) {
+         //cout << edge_vec[kk] << "\n";
+              numEdge += sum(edge_vec[kk])[0]/255;
+     }
       
-      if (minCost < bestErr) {
+      cout << minCost << "," << numEdge << "," << getSpin(R,240) << "\n";  
+      if ( (numEdge > 200) && (minCost < bestErr)) {
          bestErr = minCost;
          R.copyTo(bestR);
-         bestSpin = getSpin(R,120);
+         bestSpin = getSpin(R,240);
       }
       
    }
    
+   if (bestSpin == 0) {
+      cout << "Image quality is too low. Estimation failed!\n\n";
+      return -1;
+   }
    // Convert rotation into spin and spin axis
    vector<float> axis(3);
    getAxis(bestR,axis);
    cout << "Best error is: " << bestErr << "\n";
    cout << "Spin is: " << bestSpin << "\n"; 
-   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n";
+   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n\n";
 }
 

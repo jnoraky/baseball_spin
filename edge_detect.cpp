@@ -22,7 +22,8 @@ void edge_detect(
    */
   
    Mat smooth;
-   bilateralFilter(im,smooth,d,sigmaC,sigmaS);
+   //im.copyTo(smooth);
+   bilateralFilter(im,smooth,d,75,75);
    Laplacian(smooth,edge,CV_64F,d); // Assume kernel size = 5 
 }
 
