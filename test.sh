@@ -1,0 +1,11 @@
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/002 8 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/005 9 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/006 8 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/007 8 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/009 8 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/010 8 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/011 9 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/012 4 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/014 0 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/015 9 3 0 0 1 0 0 10000
+./out.exe /Users/james/Desktop/Consulting/repo/baseball_spin/SpinTests/016 9 3 0 0 1 0 0 10000
