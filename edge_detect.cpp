@@ -24,6 +24,8 @@ void edge_detect(
    Mat smooth;
    //im.copyTo(smooth);
    bilateralFilter(im,smooth,d,75,75);
+   //GaussianBlur(im,smooth,Size(d,d),0,0);
+   //medianBlur(im,smooth,d);
    Laplacian(smooth,edge,CV_64F,d); // Assume kernel size = 5 
 }
 

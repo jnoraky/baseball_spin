@@ -221,7 +221,7 @@ float estimate_rotation(
          //pixels
 
          // This hack speeds things up 
-         for (int kk = 0; kk < 396; kk += 10) {
+         for (int kk = 0; kk < 396; kk += 5) {
             if (xyz_tmp.at<float>(2,kk) > 0) {
                x_data.push_back( rtmp*xyz_tmp.at<float>(0,kk)+cx );
                y_data.push_back( rtmp*xyz_tmp.at<float>(1,kk)+cy );
@@ -265,9 +265,9 @@ float estimate_rotation(
          
             Mat sumMat;
             reduce(err2,sumMat,0,CV_REDUCE_SUM);
-            tmpCost += (1.0*sumMat.at<float>(0)/numNz);
+            tmpCost += (1.0*sumMat.at<float>(0));
             }  else {
-               tmpCost += 1e100;
+               tmpCost += 0;
             }
       }
 
@@ -381,6 +381,8 @@ int main(int argc, char **argv) {
       Mat xyz;
       Mat new_edge;
       estimate_orientation(edge,xyz,r,cx,cy,min_dist,xyz_rotated,cost_matrix,new_edge);
+      int numPix_tmp = sum(new_edge)[0]/255;
+      if (numPix_tmp < 20) new_edge = 0*new_edge;
       edge_vec.push_back(new_edge);
       xyz_vec.push_back(xyz);
       
@@ -416,8 +418,12 @@ int main(int argc, char **argv) {
       that has the smallest error.
    */
    float bestErr = 1e100;
+   float bestErr2 = 1e100;
    float bestSpin = 0;
-   Mat bestR;
+   float bestSpin2 = 0;
+   int maxPix = 0;
+   int maxPix2 = 0;
+   Mat bestR,bestR2;
    for (int start = 0; start < xyz_vec.size()-3; start++) {
       Mat R;
       Mat xyz_tmp;
@@ -426,11 +432,35 @@ int main(int argc, char **argv) {
      int numEdge = 0;
       for (int kk = start; kk < start+4; kk++) {
          //cout << edge_vec[kk] << "\n";
-              numEdge += sum(edge_vec[kk])[0]/255;
+              int tmp = sum(edge_vec[kk])[0]/255;
+              numEdge += tmp;
+               //numEdge += (tmp > 20) ? tmp : 0;
      }
       
       cout << minCost << "," << numEdge << "," << getSpin(R,240) << "\n";  
-      if ( (numEdge > 200) && (minCost < bestErr)) {
+      
+      /*if ( (numEdge > 200) ) {
+         //maxPix = numEdge;
+         if (numEdge > maxPix) {
+            bestR.copyTo(bestR2);
+            bestSpin2 = bestSpin;
+            bestErr2 = bestErr;
+            maxPix2 = maxPix;
+
+            R.copyTo(bestR);
+            bestSpin = getSpin(R,240);
+            bestErr = minCost;
+            maxPix = numEdge;
+         } else if (numEdge > maxPix2) {
+            R.copyTo(bestR2);
+            bestSpin2 = getSpin(R,240);
+            bestErr2 = minCost;
+            maxPix2 = numEdge;
+         }
+      }*/
+      minCost = minCost;
+      if ( (numEdge > 195) && (minCost < bestErr)) {
+         bestR.copyTo(bestR2);
          bestErr = minCost;
          R.copyTo(bestR);
          bestSpin = getSpin(R,240);
@@ -441,12 +471,29 @@ int main(int argc, char **argv) {
    if (bestSpin == 0) {
       cout << "Image quality is too low. Estimation failed!\n\n";
       return -1;
-   }
+   } /*else {
+      if (bestErr2 < bestErr) {
+         bestSpin = bestSpin2;
+         bestR2.copyTo(bestR);   
+      }
+   }*/
    // Convert rotation into spin and spin axis
    vector<float> axis(3);
    getAxis(bestR,axis);
    cout << "Best error is: " << bestErr << "\n";
    cout << "Spin is: " << bestSpin << "\n"; 
-   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n\n";
+   cout << "Axis is: [" << axis[0] << "," << axis[1] << "," << axis[2] << "]\n";
+  
+   // Get X and Y in the pitcher's coordinate system 
+   float p_x = axis[2];
+   float p_y = axis[0];
+
+   // Rotation by 90 [-p_y; p_x] to get the spin
+   float angle = atan(-p_x/p_y)*(180/3.1415926);
+   
+   float minutes = 180*(1-angle/90);
+   int hr = minutes/60;
+   int min = minutes-60*hr;
+   cout << "Time: " <<  hr << ":" << min << "\n\n"; 
 }
 
